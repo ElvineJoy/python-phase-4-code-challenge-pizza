@@ -21,8 +21,11 @@ class Restaurant(db.Model, SerializerMixin):
     address = db.Column(db.String)
 
     # add relationship
+    pizzas = db.relationship('Pizza', secondary='restaurant_pizzas', back_populates='restaurants') # Many-to-many relationship with Pizza through RestaurantPizza
+    restaurant_pizzas = db.relationship('RestaurantPizza', back_populates='restaurant', cascade='all, delete-orphan') # Define relationship to RestaurantPizza
 
     # add serialization rules
+    serialize_rules = ('-pizzas',)
 
     def __repr__(self):
         return f"<Restaurant {self.name}>"
@@ -36,9 +39,11 @@ class Pizza(db.Model, SerializerMixin):
     ingredients = db.Column(db.String)
 
     # add relationship to RestaurantPizza
-    restaurants = db.relationship('Restaurant', secondary='restaurant_pizzas', backref=db.backref('pizzas', lazy='dynamic'))
+    restaurants = db.relationship('Restaurant', secondary='restaurant_pizzas', back_populates='pizzas')  # Many-to-many relationship with Restaurant through RestaurantPizza
+    restaurant_pizzas = db.relationship('RestaurantPizza', back_populates='pizza', cascade='all, delete-orphan', single_parent=True)  # Define relationship to RestaurantPizza
 
     # add serialization rules
+    serialize_rules = ('-restaurants',)
 
     def __repr__(self):
         return f"<Pizza {self.name}, {self.ingredients}>"
@@ -55,10 +60,11 @@ class RestaurantPizza(db.Model, SerializerMixin):
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
 
     # add relationships
-    pizza = db.relationship('Pizza', backref=db.backref('restaurant_pizzas', cascade='all, delete-orphan'))
-    restaurant = db.relationship('Restaurant', backref=db.backref('restaurant_pizzas', cascade='all, delete-orphan'))
+    pizza = db.relationship('Pizza', back_populates='restaurant_pizzas')
+    restaurant = db.relationship('Restaurant', back_populates='restaurant_pizzas', overlaps="pizzas,restaurants")
 
     # add serialization rules
+    serialize_rules = ('-pizza', '-restaurant')
 
     # add validation
     @validates('price')
