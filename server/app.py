@@ -44,7 +44,13 @@ def restaurants():
 
 @app.route('/restaurants/<int:id>', methods=['GET', 'DELETE'])
 def restaurant_by_id(id):
-    restaurant = Restaurant.query.filter(Restaurant.id == id).first()
+    restaurant = Restaurant.query.get(id)
+
+    if restaurant is None:
+        response_body = {
+            "error": "Restaurant not found"
+        }
+        return make_response(jsonify(response_body), 404)
     
     if request.method == 'GET':
         restaurant_dict = restaurant.to_dict()
@@ -55,6 +61,7 @@ def restaurant_by_id(id):
         )
 
         return response
+    
     elif request.method == 'DELETE':
          db.session.delete(restaurant)
          db.session.commit()
@@ -66,13 +73,81 @@ def restaurant_by_id(id):
 
     response = make_response(
             response_body,
-            200
+            204
         )
 
     return response
 
+#pizza METHODS
+@app.route('/pizzas')
+def pizzas():
+    pizzas = []
+
+    for pizza in Pizza.query.all():
+        pizza_dict = {
+            "id": pizza.id,
+            "ingredients":pizza.ingredients,
+            "name" : pizza.name,
+            
+        }
+        pizzas.append(pizza_dict)
+
+    response = make_response(
+         jsonify(pizzas),
+         200
+     )   
+    return response
 
 
+@app.route('/restaurant_pizzas', methods=['POST'])
+def add_restaurant_pizza():
+    data = request.get_json()
+    if not data:
+        return jsonify({"errors": ["No data provided"]}), 400
+    
+    
+    try:
+        price = data['price']
+        pizza_id = data['pizza_id']
+        restaurant_id = data['restaurant_id']
+    
+        if price not in range(1,31):
+            raise ValueError("validation errors")
+
+        pizza = Pizza.query.get(pizza_id)
+        restaurant = Restaurant.query.get(restaurant_id)
+
+        if not pizza or not restaurant:
+            raise ValueError("validation errors")
+
+    #CREATING A NEW RESTAURANT PIZZA OBJECT
+        new_restaurant_pizza = RestaurantPizza(
+                price=price,
+                pizza_id=pizza_id,
+                restaurant_id=restaurant_id
+            )
+
+        db.session.add(new_restaurant_pizza)
+        db.session.commit()
+
+    
+
+        response = {
+            "id": new_restaurant_pizza.id,
+            "price": new_restaurant_pizza.price,
+            "pizza_id": new_restaurant_pizza.pizza_id,
+            "restaurant_id": new_restaurant_pizza.restaurant_id,
+            "pizza": new_restaurant_pizza.pizza.to_dict(), 
+            "restaurant": new_restaurant_pizza.restaurant.to_dict()
+        }
+    
+        return jsonify(response), 201
+
+    except ValueError as ve:
+        return jsonify({"errors": [str(ve)]}), 400
+    
+    except Exception as e:
+        return jsonify({"errors": ["An unexpected error occurred"]}), 500
 
 
 
